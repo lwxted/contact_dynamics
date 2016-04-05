@@ -2,7 +2,6 @@ cmake_minimum_required (VERSION 2.6)
 project (BouncingBallSimulation)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-
 #===============================================================================
 if(MSVC)
   # Visual Studio enables c++11 support by default
@@ -30,7 +29,7 @@ elseif(CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS_DEBUG}")
   set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_DEBUG} -pg")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -fPIC -framework GLUT -Wno-deprecated")
   execute_process(
     COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE CLANG_VERSION)
   set(CXX_COMPILER_VERSION ${CLANG_VERSION})
@@ -56,8 +55,21 @@ find_package(Eigen REQUIRED)
 message(STATUS "Eigen_INCLUDE_DIRS = ${Eigen_INCLUDE_DIRS}")
 include_directories(${Eigen_INCLUDE_DIRS})
 
-# Actual
-find_library(DART_LIBRARY libdart.5.1.dylib)
-add_executable (BouncingBallSimulation bouncingBall.cpp)
-target_link_libraries(BouncingBallSimulation ${DART_LIBRARY})
+# Boost
+find_package(Boost COMPONENTS system REQUIRED)
+message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost_SYSTEM_LIBRARY = ${Boost_SYSTEM_LIBRARY}")
+include_directories(${Boost_INCLUDE_DIRS})
+
+# Assimp
+find_package(ASSIMP REQUIRED)
+message(STATUS "ASSIMP_INCLUDE_DIRS = ${ASSIMP_INCLUDE_DIRS}")
+message(STATUS "ASSIMP_LIBRARIES = ${ASSIMP_LIBRARIES}")
+include_directories(${ASSIMP_INCLUDE_DIRS})
+
+add_executable(${PROJECT_NAME} bouncingBall.cpp)
+target_link_libraries(${PROJECT_NAME} /usr/local/lib/libdart-core.dylib)
+target_link_libraries(${PROJECT_NAME} /usr/local/lib/libdart.dylib)
+target_link_libraries(${PROJECT_NAME} ${Boost_SYSTEM_LIBRARY})
+target_link_libraries(${PROJECT_NAME} ${ASSIMP_LIBRARIES})
 

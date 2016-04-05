@@ -7,11 +7,11 @@ Reshape extracted data files to format acceptable by xgboost
 
 import os
 
-# [1, 501) acc_y.txt.train
-# [601, 700) acc_y.txt.test
+# [1, 300] acc_y.txt.train
+# [301, 600] acc_y.txt.test
 
-dp_start = 601
-dp_end = 700
+dp_start = 301
+dp_end = 600
 fname = 'acc_y.txt.test'
 
 if __name__ == '__main__':
