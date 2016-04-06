@@ -5,6 +5,8 @@
  */
 
 #include "dart/dart.h"
+#include "util/Reporter.h"
+
 #include <random>
 #include <chrono>
 #include <fstream>
@@ -14,6 +16,8 @@ using namespace dart::simulation;
 using namespace dart::collision;
 using namespace dart::gui;
 
+static const std::string training_examples_path = "/Users/lwxted/Documents/Projects/contact_dynamics/training_examples/";
+
 int training_count = 0;
 
 float ballRadius      = 0.5;
@@ -22,14 +26,6 @@ float restitutionWall = 1;
 float frictionWall    = 0.075;
 float restitutionBall = 0.8;
 float frictionBall    = 0.1;
-
-std::vector<Eigen::Vector6d> velocity;
-std::vector<Eigen::Vector6d> position;
-std::vector<float> toGround;
-std::vector<float> toWall1;
-std::vector<float> toWall2;
-
-std::vector<Eigen::Vector6d> acceleration;
 
 typedef struct Rand {
 private:
@@ -54,14 +50,26 @@ public:
 
 Rand rng;
 
+typedef enum {
+  kFreeFall,
+  kHitContact,
+  kBreakContact,
+  kMovingUpwards
+} ContactMode;
+
 
 class BouncingBallWindow : public SimWindow
 {
+private:
+  int _contact_mode;
+  Reporter<float> _reporter;
+
 public:
   BouncingBallWindow(const WorldPtr& world)
   {
     setWorld(world);
     ballSkeleton = world->getSkeleton("ballSkeleton");
+    _contact_mode = 0;
   }
 
   void keyboard(unsigned char key, int x, int y) override
@@ -71,63 +79,50 @@ public:
 
   void noteState(FreeJoint *joint)
   {
-    float posX = joint->getPosition(3);
-    float posY = joint->getPosition(4);
-    float posZ = joint->getPosition(5);
+    std::vector<float> data_point;
 
-    velocity.push_back(joint->getVelocities());
-    position.push_back(joint->getPositions());
-    toGround.push_back(2.5 + posY);
-    toWall1.push_back(2.5 + posX);
-    toWall2.push_back(2.5 + posZ);
+    // Input features
+    data_point.push_back(joint->getVelocity(0));  // angVelocityD0
+    data_point.push_back(joint->getVelocity(1));  // angVelocityD1
+    data_point.push_back(joint->getVelocity(2));  // angVelocityD1
+    data_point.push_back(joint->getVelocity(3));  // vX
+    data_point.push_back(joint->getVelocity(4));  // vY
+    data_point.push_back(joint->getVelocity(5));  // vZ
+    data_point.push_back(joint->getPosition(0));  // angPosD0
+    data_point.push_back(joint->getPosition(1));  // angPosD1
+    data_point.push_back(joint->getPosition(2));  // angPosD2
+    data_point.push_back(joint->getPosition(3));  // posX
+    data_point.push_back(joint->getPosition(4));  // posY
+    data_point.push_back(joint->getPosition(5));  // posZ
+    data_point.push_back(joint->getPosition(4) + 2.5 - ballRadius / 2);  // distanceToGround
+    data_point.push_back(joint->getPosition(3) + 2.5 - ballRadius / 2);  // distanceToWall1
+    data_point.push_back(joint->getPosition(5) + 2.5 - ballRadius / 2);  // distanceToWall2
+    data_point.push_back(ballRadius);                   // ballRadius
+    data_point.push_back(gravityCoeff);                 // gravityCoeff
+    data_point.push_back(restitutionWall);              // restitutionWall
+    data_point.push_back(frictionWall);                 // frictionWall
+    data_point.push_back(restitutionBall);              // restitutionBall
+    data_point.push_back(frictionBall);                 // frictionBall
 
-    acceleration.push_back(joint->getAccelerations());
+    // Output labels
+    data_point.push_back(joint->getAcceleration(0));  // angAccD0
+    data_point.push_back(joint->getAcceleration(1));  // angAccD1
+    data_point.push_back(joint->getAcceleration(2));  // angAccD2
+    data_point.push_back(joint->getAcceleration(3));  // AccX
+    data_point.push_back(joint->getAcceleration(4));  // AccY
+    data_point.push_back(joint->getAcceleration(5));  // AccZ
+
+    // Store data to reporter
+    _reporter.add_data(data_point);
   }
 
   void reportState()
   {
-    std::ofstream output;
     std::ostringstream file_path_stream;
-    // TODO: get rid of this magic path
-    file_path_stream << "/Users/lwxted/Documents/Projects/contact_dynamics/training_examples/";
+    file_path_stream << training_examples_path;
     file_path_stream << "ex" << (training_count++) << ".txt";
-    output.open(file_path_stream.str());
-    for (int i = 0; i < acceleration.size(); ++i) {
-      output << velocity[i][0] << ", "
-             << velocity[i][1] << ", "
-             << velocity[i][2] << ", "
-             << velocity[i][3] << ", "
-             << velocity[i][4] << ", "
-             << velocity[i][5] << ", "
-             << position[i][0] << ", "
-             << position[i][1] << ", "
-             << position[i][2] << ", "
-             << position[i][3] << ", "
-             << position[i][4] << ", "
-             << position[i][5] << ", "
-             << toGround[i] << ", "
-             << toWall1[i] << ", "
-             << toWall2[i] << ", "
-             << ballRadius         << ", "
-             << gravityCoeff       << ", "
-             << restitutionWall    << ", "
-             << frictionWall       << ", "
-             << restitutionBall    << ", "
-             << frictionBall       << ", "
-             << acceleration[i][0] << ", "
-             << acceleration[i][1] << ", "
-             << acceleration[i][2] << ", "
-             << acceleration[i][3] << ", "
-             << acceleration[i][4] << ", "
-             << acceleration[i][5] << ", " << std::endl;
-    }
-    output.close();
-    velocity.clear();
-    position.clear();
-    toGround.clear();
-    toWall1.clear();
-    toWall2.clear();
-    acceleration.clear();
+    _reporter.dump_to_file_at(file_path_stream.str());
+    _reporter.clear_data();
   }
 
   void timeStepping() override
@@ -135,18 +130,21 @@ public:
     int numFrame = (int) (mWorld->getTime() * 1000);
     FreeJoint *joint = (FreeJoint *) ballSkeleton->getJoint("free_joint");
 
-    if (numFrame % 3000 == 0) {
+    if (numFrame % 3000 == 2999) {
       float vx = rng.rand();
-      float vy = rng.rand();
+      float vz = rng.rand();
       reportState();
       mWorld->reset();
       mWorld->setGravity(Eigen::Vector3d(0.0, gravityCoeff, 0.0));
       Eigen::Vector6d resetPosition = Eigen::compose(
         Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
       Eigen::Vector6d resetVelocity = Eigen::compose(
-        Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(vx, 0, vy));
+        Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(vx, 0, vz));
+      Eigen::Vector6d resetAcceleration = Eigen::compose(
+        Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
       joint->setPositions(resetPosition);
       joint->setVelocities(resetVelocity);
+      joint->setAccelerations(resetAcceleration);
     } else {
       noteState(joint);
     }

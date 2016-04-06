@@ -1,5 +1,6 @@
-cmake_minimum_required (VERSION 2.6)
-project (BouncingBallSimulation)
+cmake_minimum_required(VERSION 2.6)
+project(BouncingBallSimulation)
+add_subdirectory(util)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 #===============================================================================
@@ -48,28 +49,36 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 else()
   message(SEND_ERROR "Compiler[${CMAKE_CXX_COMPILER_ID}] not supported.")
 endif()
+#===============================================================================
+
+set(targets "training_example_extraction.cpp")
+
+foreach (target ${targets})
+
+  get_filename_component(target_base ${target} NAME_WE)
+
+  # Eigen
+  find_package(Eigen REQUIRED)
+  message(STATUS "Eigen_INCLUDE_DIRS = ${Eigen_INCLUDE_DIRS}")
+  include_directories(${Eigen_INCLUDE_DIRS})
+
+  # Boost
+  find_package(Boost COMPONENTS system REQUIRED)
+  message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
+  message(STATUS "Boost_SYSTEM_LIBRARY = ${Boost_SYSTEM_LIBRARY}")
+  include_directories(${Boost_INCLUDE_DIRS})
+
+  # Assimp
+  find_package(ASSIMP REQUIRED)
+  message(STATUS "ASSIMP_INCLUDE_DIRS = ${ASSIMP_INCLUDE_DIRS}")
+  message(STATUS "ASSIMP_LIBRARIES = ${ASSIMP_LIBRARIES}")
+  include_directories(${ASSIMP_INCLUDE_DIRS})
 
 
-# Eigen
-find_package(Eigen REQUIRED)
-message(STATUS "Eigen_INCLUDE_DIRS = ${Eigen_INCLUDE_DIRS}")
-include_directories(${Eigen_INCLUDE_DIRS})
+  add_executable(${target_base} ${target})
+  target_link_libraries(${target_base} /usr/local/lib/libdart-core.dylib)
+  target_link_libraries(${target_base} /usr/local/lib/libdart.dylib)
+  target_link_libraries(${target_base} ${Boost_SYSTEM_LIBRARY})
+  target_link_libraries(${target_base} ${ASSIMP_LIBRARIES})
 
-# Boost
-find_package(Boost COMPONENTS system REQUIRED)
-message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
-message(STATUS "Boost_SYSTEM_LIBRARY = ${Boost_SYSTEM_LIBRARY}")
-include_directories(${Boost_INCLUDE_DIRS})
-
-# Assimp
-find_package(ASSIMP REQUIRED)
-message(STATUS "ASSIMP_INCLUDE_DIRS = ${ASSIMP_INCLUDE_DIRS}")
-message(STATUS "ASSIMP_LIBRARIES = ${ASSIMP_LIBRARIES}")
-include_directories(${ASSIMP_INCLUDE_DIRS})
-
-add_executable(${PROJECT_NAME} bouncingBall.cpp)
-target_link_libraries(${PROJECT_NAME} /usr/local/lib/libdart-core.dylib)
-target_link_libraries(${PROJECT_NAME} /usr/local/lib/libdart.dylib)
-target_link_libraries(${PROJECT_NAME} ${Boost_SYSTEM_LIBRARY})
-target_link_libraries(${PROJECT_NAME} ${ASSIMP_LIBRARIES})
-
+endforeach(target)
