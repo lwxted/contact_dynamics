@@ -36,3 +36,4 @@ install_manifest.txt
 
 # build
 build/
+training_examples/
