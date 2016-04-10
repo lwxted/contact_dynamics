@@ -7,15 +7,18 @@
 #include "dart/dart.h"
 #include "util/CSVParser.h"
 
+#include "common/ContactMode.h"
+
 using namespace dart::dynamics;
 using namespace dart::simulation;
 using namespace dart::collision;
 using namespace dart::gui;
 
 
-static const float ballRadius     = 0.5;
+static const float ballRadius = 0.5;
 static float timeStepFactor = 1.0;
-static int posX_col, posY_col, posZ_col;
+static int posX_col, posY_col, posZ_col, mode_col = -1;
+static int collision_vis_counter = 0;
 
 static CSVParser<float> parser;
 
@@ -40,6 +43,7 @@ public:
     if (numFrame == parser.data().size() / timeStepFactor) {
       // Reset world
       mWorld->reset();
+      collision_vis_counter = 0;
     } else {
       // Update ball position
       BodyNode *ballNode = ballSkeleton->getBodyNode("ballNode");
@@ -50,6 +54,53 @@ public:
           parser.data()[numFrame % parser.data().size() * timeStepFactor][posZ_col]
       ));
       ballJoint->setPositions(position);
+
+      if (mode_col != -1) {
+        if (collision_vis_counter > 0) {
+          ballNode->getVisualizationShape(0)->setColor(dart::Color::Red());
+          --collision_vis_counter;
+        } else {
+          switch ((ContactMode) (int) parser.data()[numFrame % parser.data().size() * timeStepFactor][mode_col]) {
+            case kUndefined:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Black());
+              break;
+
+            case kFreeFall:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(0.3));
+              break;
+
+            case kHitContactGround:
+              std::cout << "Collision with ground at t=" << ' ' << numFrame << std::endl;
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Red());
+              collision_vis_counter = 50;
+              break;
+
+            case kHitContactWall1:
+              std::cout << "Collision with wall 1 at t=" << ' ' << numFrame << std::endl;
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Red());
+              collision_vis_counter = 50;
+              break;
+
+            case kHitContactWall2:
+              std::cout << "Collision with wall 2 at t=" << ' ' << numFrame << std::endl;
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Red());
+              collision_vis_counter = 50;
+              break;
+
+            case kBreakContact:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Red());
+              break;
+
+            case kMovingUpwards:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(1));
+              break;
+
+            case kProbablyStatic:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Gray());
+              break;
+          }
+        }
+      }
     }
 
     SimWindow::timeStepping();
@@ -59,10 +110,14 @@ public:
 
 int main(int argc, char *argv[])
 {
-  if (argc != 6) {
+  if (argc < 6) {
     printf("usage: ball_path_visualization <training_data> "
       "<time_step_factor> <posX_col> <posY_col> <posZ_col>\n");
     return 1;
+  }
+
+  if (argc == 7) {
+    mode_col = atoi(argv[6]);
   }
 
   // Read in data

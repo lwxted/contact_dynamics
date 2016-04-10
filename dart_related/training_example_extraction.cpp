@@ -7,6 +7,7 @@
 #include "dart/dart.h"
 #include "util/Reporter.h"
 #include "util/Rand.h"
+#include "common/ContactMode.h"
 
 #include <algorithm>
 #include <fstream>
@@ -18,7 +19,7 @@ using namespace dart::gui;
 
 static std::string output_path;
 
-int training_count = 0;
+int training_count = 506;
 int static_counter = 0;
 
 // Initial conditions
@@ -36,17 +37,6 @@ static const float moving_vel_threshold = pow(0.01, 2);
 static const int static_counter_threshold = 15;
 
 struct Rand rng;
-
-typedef enum {
-  kUndefined = 0,
-  kFreeFall = 1,
-  kHitContactGround = 2,
-  kHitContactWall1 = 3,
-  kHitContactWall2 = 4,
-  kBreakContact = 5,
-  kMovingUpwards = 6,
-  kProbablyStatic = 7,
-} ContactMode;
 
 ContactMode mode = kUndefined;
 
