@@ -51,7 +51,7 @@ else()
 endif()
 #===============================================================================
 
-set(targets "training_example_extraction.cpp")
+set(targets "training_example_extraction.cpp" "ball_path_visualization.cpp")
 
 foreach (target ${targets})
 
