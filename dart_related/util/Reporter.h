@@ -11,15 +11,14 @@
 
 template <class T>
 class Reporter {
-private:
-  std::vector<std::vector<T> > _data;
-
 public:
+  std::vector<std::vector<T> > data;
+
   void add_data(const std::vector<T>& data_point)
   {
-    _data.push_back(std::vector<T>(data_point));
-    if (!_data.empty()) {
-      if (_data[0].size() != data_point.size()) {
+    data.push_back(std::vector<T>(data_point));
+    if (!data.empty()) {
+      if (data[0].size() != data_point.size()) {
         throw std::invalid_argument("Data size not consistent.");
       }
     }
@@ -27,14 +26,14 @@ public:
 
   void clear_data()
   {
-    _data.clear();
+    data.clear();
   }
 
   void dump_to_file_at(const std::string& file_name)
   {
     std::ofstream output;
     output.open(file_name, std::fstream::out);
-    for (auto it = _data.begin(); it != _data.end(); ++it) {
+    for (auto it = data.begin(); it != data.end(); ++it) {
       for (auto itt = it->begin(); itt != it->end(); ++itt) {
         output << *itt;
         if (itt + 1 != it->end()) {
