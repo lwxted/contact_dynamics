@@ -66,7 +66,7 @@ public:
               break;
 
             case kFreeFall:
-              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(0.3));
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(1));
               break;
 
             case kHitContactGround:
@@ -92,7 +92,7 @@ public:
               break;
 
             case kMovingUpwards:
-              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(1));
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(0.25));
               break;
 
             case kProbablyStatic:
@@ -163,14 +163,14 @@ int main(int argc, char *argv[])
   // Define the collision + visualization shape of the ground + walls
   // Ground
   std::shared_ptr<BoxShape> boxShape(
-    new BoxShape(Eigen::Vector3d(50.0, 0.05, 50.0)));
+    new BoxShape(Eigen::Vector3d(5.0, 0.05, 5.0)));
   boxShape->setOffset(Eigen::Vector3d(0, -2.5, 0));
   groundNode->addVisualizationShape(boxShape);
   groundNode->addCollisionShape(boxShape);
 
   // Wall 1
   std::shared_ptr<BoxShape> wallShape1(
-    new BoxShape(Eigen::Vector3d(0.05, 50.0, 50.0)));
+    new BoxShape(Eigen::Vector3d(0.05, 5.0, 5.0)));
   wallShape1->setOffset(Eigen::Vector3d(-2.5, 0, 0));
   wallShape1->setColor(dart::Color::Gray(0.4));
   groundNode->addVisualizationShape(wallShape1);
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 
   // Wall 2
   std::shared_ptr<BoxShape> wallShape2(
-    new BoxShape(Eigen::Vector3d(50.0, 50.0, 0.05)));
+    new BoxShape(Eigen::Vector3d(5.0, 5.0, 0.05)));
   wallShape2->setOffset(Eigen::Vector3d(0, 0, -2.5));
   wallShape2->setColor(dart::Color::Gray(0.4));
   groundNode->addVisualizationShape(wallShape2);
