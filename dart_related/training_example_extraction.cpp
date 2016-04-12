@@ -19,7 +19,7 @@ using namespace dart::gui;
 
 static std::string output_path;
 
-int training_count = 506;
+int training_count = 654;
 int static_counter = 0;
 
 // Initial conditions
