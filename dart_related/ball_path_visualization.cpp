@@ -95,8 +95,12 @@ public:
               ballNode->getVisualizationShape(0)->setColor(dart::Color::Orange(0.25));
               break;
 
+            case kProbablyRolling:
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Gray(0.75));
+              break;
+
             case kProbablyStatic:
-              ballNode->getVisualizationShape(0)->setColor(dart::Color::Gray());
+              ballNode->getVisualizationShape(0)->setColor(dart::Color::Gray(0.25));
               break;
           }
         }

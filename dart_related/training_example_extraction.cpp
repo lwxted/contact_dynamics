@@ -7,7 +7,7 @@
 #include "dart/dart.h"
 #include "util/Reporter.h"
 #include "util/Rand.h"
-#include "common/ContactMode.h"
+#include "util/ContactModeAnnotator.h"
 
 #include <algorithm>
 #include <fstream>
@@ -19,26 +19,20 @@ using namespace dart::gui;
 
 static std::string output_path;
 
-int training_count = 654;
-int static_counter = 0;
+int training_count = 1000;
 
 // Initial conditions
 float ballRadius      = 0.5;
 float gravityCoeff    = -9.81;
 
-float restitutionWall = 0.15;
-float restitutionBall = 0.15;
+float restitutionWall = 0.35;
+float restitutionBall = 0.35;
 
-float frictionWall    = 0.075;
+float frictionWall    = 0.1;
 float frictionBall    = 0.1;
 
-static const float contact_acc_threshold = pow(20.0, 2);
-static const float moving_vel_threshold = pow(0.01, 2);
-static const int static_counter_threshold = 15;
-
 struct Rand rng;
-
-ContactMode mode = kUndefined;
+ContactModeAnnotator cma;
 
 class BouncingBallWindow : public SimWindow
 {
@@ -68,10 +62,6 @@ public:
     data_point.push_back(joint->getVelocity(1));  // angVelocityD1
     data_point.push_back(joint->getVelocity(2));  // angVelocityD1
 
-    float vX = joint->getVelocity(3);
-    float vY = joint->getVelocity(4);
-    float vZ = joint->getVelocity(5);
-
     data_point.push_back(joint->getVelocity(3));  // vX
     data_point.push_back(joint->getVelocity(4));  // vY
     data_point.push_back(joint->getVelocity(5));  // vZ
@@ -82,9 +72,9 @@ public:
     data_point.push_back(joint->getPosition(4));  // posY
     data_point.push_back(joint->getPosition(5));  // posZ
 
-    float distToGround = joint->getPosition(4) + 2.5 - ballRadius / 2;
-    float distToWall1 = joint->getPosition(3) + 2.5 - ballRadius / 2;
-    float distToWall2 = joint->getPosition(5) + 2.5 - ballRadius / 2;
+    float distToGround = joint->getPosition(4) + 2.25;
+    float distToWall1 = joint->getPosition(3) + 2.25;
+    float distToWall2 = joint->getPosition(5) + 2.25;
 
     data_point.push_back(distToGround);  // distanceToGround
     data_point.push_back(distToWall1);  // distanceToWall1
@@ -101,71 +91,20 @@ public:
     data_point.push_back(joint->getAcceleration(0));  // angAccD0
     data_point.push_back(joint->getAcceleration(1));  // angAccD1
     data_point.push_back(joint->getAcceleration(2));  // angAccD2
+    data_point.push_back(joint->getAcceleration(3));  // angAccD0
+    data_point.push_back(joint->getAcceleration(4));  // angAccD1
+    data_point.push_back(joint->getAcceleration(5));  // angAccD2
 
-    // Acceleration
-    float accX = joint->getAcceleration(3);
-    float accY = joint->getAcceleration(4);
-    float accZ = joint->getAcceleration(5);
 
-    data_point.push_back(joint->getAcceleration(3));  // AccX
-    data_point.push_back(joint->getAcceleration(4));  // AccY
-    data_point.push_back(joint->getAcceleration(5));  // AccZ
+    ContactMode mode = cma.annotate(
+      joint->getPosition(3), joint->getPosition(4), joint->getPosition(5),
+      joint->getVelocity(4),
+      joint->getAcceleration(3),
+      joint->getAcceleration(4),
+      joint->getAcceleration(5),
+      distToGround, distToWall1, distToWall2);
 
-    float accMag = accX * accX + accY * accY + accZ * accZ;
-    float vMag = vX * vX + vY * vY + vZ * vZ;
-
-    float velY = joint->getVelocity(4);
-
-    if (vMag < moving_vel_threshold) {
-      ++static_counter;
-    } else {
-      static_counter = 0;
-    }
-
-    if (mode == kHitContactGround ||
-        mode == kHitContactWall1 ||
-        mode == kHitContactWall2) {
-      mode = kBreakContact;
-      goto contact;
-    } else {
-      int data_size = _reporter.data.size();
-      if (_reporter.data.size() >= 2) {
-        if (_reporter.data[data_size - 1][12] < distToGround &&
-            _reporter.data[data_size - 1][12] < _reporter.data[data_size - 2][12] &&
-            accMag > contact_acc_threshold) {
-          mode = kHitContactGround;
-          goto contact;
-        }
-        if (_reporter.data[data_size - 1][13] < distToWall1 &&
-            _reporter.data[data_size - 1][13] < _reporter.data[data_size - 2][13] &&
-            accMag > contact_acc_threshold) {
-          mode = kHitContactWall1;
-          goto contact;
-        }
-        if (_reporter.data[data_size - 1][14] < distToWall2 &&
-            _reporter.data[data_size - 1][14] < _reporter.data[data_size - 2][14] &&
-            accMag > contact_acc_threshold) {
-          mode = kHitContactWall2;
-          goto contact;
-        }
-      } else {
-        goto normal;
-      }
-    }
-
-normal:
-    if (static_counter > static_counter_threshold) {
-      mode = kProbablyStatic;
-    } else if (velY > 0) {
-      mode = kMovingUpwards;
-    } else if (accY < 0) {
-      mode = kFreeFall;
-    } else {
-      mode = kUndefined;
-    }
-
-contact:
-    data_point.push_back((float) (int) mode);  // Contact mode
+    data_point.push_back(mode);
 
     // Store data to reporter
     _reporter.add_data(data_point);
@@ -179,6 +118,7 @@ contact:
     file_path_stream << "ex" << (training_count++) << ".txt";
     _reporter.dump_to_file_at(file_path_stream.str());
     _reporter.clear_data();
+    cma = ContactModeAnnotator();
   }
 
   void timeStepping() override
@@ -189,8 +129,8 @@ contact:
     if (numFrame % 3000 == 2999) {
       float vx = rng.rand(-6, 0);
       float vz = rng.rand(-6, 0);
-      float restitutionBall = rng.rand(0.15, 0.9);
-      float restitutionWall = rng.rand(0.15, 0.9);
+      float restitutionBall = rng.rand(0.35, 0.9);
+      float restitutionWall = rng.rand(0.35, 0.9);
       float frictionWall = rng.rand(0.05, 0.9);
       float frictionBall = rng.rand(0.05, 0.9);
 
@@ -221,9 +161,6 @@ contact:
       ballNode->setFrictionCoeff(frictionBall);
       wallNode->setRestitutionCoeff(restitutionWall);
       wallNode->setFrictionCoeff(frictionWall);
-
-      mode = kUndefined;
-      static_counter = 0;
 
     } else {
       noteState(ballJoint);
@@ -278,14 +215,14 @@ int main(int argc, char *argv[])
   // Define the collision + visualization shape of the ground + walls
   // Ground
   std::shared_ptr<BoxShape> boxShape(
-    new BoxShape(Eigen::Vector3d(50.0, 0.05, 50.0)));
+    new BoxShape(Eigen::Vector3d(50.0, 0.01, 50.0)));
   boxShape->setOffset(Eigen::Vector3d(0, -2.5, 0));
   groundNode->addVisualizationShape(boxShape);
   groundNode->addCollisionShape(boxShape);
 
   // Wall 1
   std::shared_ptr<BoxShape> wallShape1(
-    new BoxShape(Eigen::Vector3d(0.05, 50.0, 50.0)));
+    new BoxShape(Eigen::Vector3d(0.01, 50.0, 50.0)));
   wallShape1->setOffset(Eigen::Vector3d(-2.5, 0, 0));
   wallShape1->setColor(dart::Color::Gray(0.4));
   groundNode->addVisualizationShape(wallShape1);
@@ -293,7 +230,7 @@ int main(int argc, char *argv[])
 
   // Wall 2
   std::shared_ptr<BoxShape> wallShape2(
-    new BoxShape(Eigen::Vector3d(50.0, 50.0, 0.05)));
+    new BoxShape(Eigen::Vector3d(50.0, 50.0, 0.01)));
   wallShape2->setOffset(Eigen::Vector3d(0, 0, -2.5));
   wallShape2->setColor(dart::Color::Gray(0.4));
   groundNode->addVisualizationShape(wallShape2);

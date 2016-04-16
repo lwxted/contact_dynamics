@@ -13,4 +13,9 @@ typedef enum {
   kBreakContact = 5,
   kMovingUpwards = 6,
   kProbablyStatic = 7,
+  kProbablyRolling = 8
 } ContactMode;
+
+/**
+ *
+ */
